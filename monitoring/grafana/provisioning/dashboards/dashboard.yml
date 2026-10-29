@@ -1,0 +1,19 @@
+# ──────────────────────────────────────────────────────────────
+# Grafana Dashboard Auto-Provisioning
+# Tells Grafana to load all .json dashboards from the mounted
+# dashboards directory on startup.
+# ──────────────────────────────────────────────────────────────
+
+apiVersion: 1
+
+providers:
+  - name: "Rate-Limiter Dashboards"
+    orgId: 1
+    folder: ""
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 5
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

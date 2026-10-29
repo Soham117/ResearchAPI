@@ -1,0 +1,23 @@
+# ──────────────────────────────────────────────────────────────
+# API Rate-Limiting Effectiveness Against Credential Stuffing
+# Python Dependencies
+# ──────────────────────────────────────────────────────────────
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+redis[hiredis]==5.2.1
+httpx==0.28.1
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# Data analysis & visualization
+pandas==2.2.3
+numpy==2.2.1
+matplotlib==3.10.0
+seaborn==0.13.2
+
+# Monitoring
+prometheus-client==0.21.1
+
+# Utilities
+orjson==3.10.13
+aiofiles==24.1.0

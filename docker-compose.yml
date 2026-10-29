@@ -1,0 +1,113 @@
+# ──────────────────────────────────────────────────────────────
+# docker-compose.yml — Full Observability Stack
+# Services: Redis, FastAPI, Prometheus, Grafana
+#
+# Usage:
+#   docker compose up -d          # Start all services
+#   docker compose down           # Stop all services
+#
+# Ports:
+#   8000 — FastAPI API + /metrics
+#   6379 — Redis
+#   9090 — Prometheus
+#   3000 — Grafana (no login required)
+#
+# Author: Soham Adsare (SY MCA, ICEM Pune)
+# Guide:  Dr. Dhanashree Patil
+# ──────────────────────────────────────────────────────────────
+services:
+
+  # ── Redis: In-memory atomic state store for rate limiters ──
+  redis:
+    image: redis:7-alpine
+    container_name: ratelimit-redis
+    ports:
+      - "6379:6379"
+    # Disable persistence for pure in-memory speed
+    command: redis-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - benchmark-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ── FastAPI: Rate-limited authentication endpoint ──────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ratelimit-api
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_FILE=/project/logs/experiment_runs.jsonl
+      # Demo-tuned rate-limit config (10 req per 10s for visual demos)
+      - RATE_LIMIT_REQUESTS=10
+      - RATE_LIMIT_WINDOW_SECONDS=10
+      # Token Bucket: 10 capacity, 1 token/sec refill
+      - TOKEN_BUCKET_CAPACITY=10
+      - TOKEN_BUCKET_REFILL_RATE=1.0
+    volumes:
+      # Mount logs directory for host-side analysis
+      - ./logs:/project/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - benchmark-net
+    restart: unless-stopped
+
+  # ── Prometheus: Metrics scraping (1-second interval) ───────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ratelimit-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - benchmark-net
+    restart: unless-stopped
+
+  # ── Grafana: Real-time dashboards (zero-config provisioning) ─
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ratelimit-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      # Anonymous access for presentations (no login required)
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      # Branding
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/rate_limiting_demo.json
+    volumes:
+      # Auto-provision datasource (Prometheus)
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      # Auto-provision dashboard loader config
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      # Pre-built dashboard JSON
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - benchmark-net
+    restart: unless-stopped
+
+networks:
+  benchmark-net:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:

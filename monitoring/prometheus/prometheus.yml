@@ -1,0 +1,18 @@
+# ──────────────────────────────────────────────────────────────
+# Prometheus Configuration — Rate-Limiter Benchmarking Suite
+#
+# Scrapes the FastAPI /metrics endpoint at 1-second intervals
+# for real-time demo visibility on Grafana dashboards.
+# ──────────────────────────────────────────────────────────────
+
+global:
+  scrape_interval: 1s        # 1-second for real-time demo refresh
+  evaluation_interval: 1s
+
+scrape_configs:
+  - job_name: "ratelimit-api"
+    static_configs:
+      - targets: ["ratelimit-api:8000"]
+        labels:
+          service: "rate-limiter"
+          environment: "benchmark"
